@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCardRequest;
 use App\Http\Requests\UpdateCardRequest;
 use App\Models\Card;
+use Inertia\Inertia;
 
 
 class CardController extends Controller
@@ -14,7 +15,20 @@ class CardController extends Controller
      */
     public function index()
     {
-        return view('card.index', ['cards' => Card::all()]);
+        $cards = Card::paginate(15)->through(function ($card) {
+            return [
+                'id' => $card->id,
+                'PIN' => $card->PIN,
+                'card_number' => $card->card_number,
+                'active_date' =>  $card->active_date,
+                'expiry_date' => $card->expiry_date,
+                'saldo' => $card->saldo,
+                'show_url' => route('cards.show', $card),
+                'edit_url' => route('cards.edit', $card),
+            ];
+        });
+        
+        return Inertia::render('Card/Index', ['cards' => $cards, 'create_url' => route('cards.create'),]);
     }
 
     /**
@@ -22,7 +36,7 @@ class CardController extends Controller
      */
     public function create()
     {
-        return view('card.create');
+        return Inertia::render('Card/Create');
     }
 
     /**
@@ -31,11 +45,11 @@ class CardController extends Controller
     public function store(StoreCardRequest $request)
     {
         $validated = $request->validate([
-            'card_number' => 'required|unique:cards|max:20',
-            'PIN' => 'required|max:4',
+            'card_number' => 'required|digits:20',
+            'PIN' => 'required|digits:4',
             'active_date' => 'required',
             'expiry_date' => 'required',
-            'saldo' => 'required',
+            'saldo' => 'required|decimal:2',
         ]);
         $card = Card::create([
             'card_number' => $validated['card_number'],
@@ -53,7 +67,15 @@ class CardController extends Controller
      */
     public function show(Card $card)
     {
-        return view('card.show', ['card' => $card]);
+        return Inertia::render('Card/Show', ['card' => [
+            'id' => $card->id,
+            'PIN' => $card->PIN,
+            'card_number' => $card->card_number,
+            'active_date' =>  $card->active_date,
+            'expiry_date' => $card->expiry_date,
+            'saldo' => $card->saldo,
+            'edit_url' => route('cards.edit', $card),
+        ]]);
     }
 
     /**
@@ -61,7 +83,7 @@ class CardController extends Controller
      */
     public function edit(Card $card)
     {
-        return view('card.edit', ['card' => $card]);
+        return Inertia::render('Card/Edit', ['card' => $card]);
     }
 
     /**
@@ -70,11 +92,11 @@ class CardController extends Controller
     public function update(UpdateCardRequest $request, Card $card)
     {
         $validated = $request->validate([
-            'card_number' => 'required|max:20',
-            'PIN' => 'required|max:4',
+            'card_number' => 'required|digits:20',
+            'PIN' => 'required|digits:4',
             'active_date' => 'required',
             'expiry_date' => 'required',
-            'saldo' => 'required',
+            'saldo' => 'required|decimal:2',
         ]);
 
         $card->card_number = $validated['card_number'];
@@ -92,6 +114,7 @@ class CardController extends Controller
      */
     public function destroy(Card $card)
     {
-        //
+        $card->delete();
+        return to_route('cards.index');
     }
 }
